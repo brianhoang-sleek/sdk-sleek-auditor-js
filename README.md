@@ -1,120 +1,120 @@
-# Sleek Audit Log -- Local Setup & Usage
+# Sleek Auditor SDK (sdk-sleek-auditor-js)
 
-## 1. Run Audit Service Locally
+HTTP client SDK for the Sleek Auditor API (audit events). Use this package in NestJS or Express services to send and query audit events.
 
-### Start `sleek-nest-audit`
+## 1. Run Auditor API Locally
 
-``` bash
-cd sleek-nest-audit
+```bash
+cd sleek-auditor-api
 npm install
-npm run db:start
+npm run db:start  # or your DB setup
 npm run start:dev
 ```
 
-Audit service will run on:
+API base URL (with version prefix):
 
-    http://localhost:3003/v1
+    http://localhost:3000/v1
 
-------------------------------------------------------------------------
+## 2. Build the SDK
 
-# 2. Build Audit Client SDK
-
-``` bash
-cd sleek-sdk-audit-client
+```bash
+cd sdk-sleek-auditor-js
 npm install
 npm run build
 ```
 
-------------------------------------------------------------------------
+## 3. Use in Your Service
 
-# 3. Use Audit Client in Other Services
+### Environment variables
 
-## Environment Variables
-
-Add the following variables:
-
-``` bash
-export AUDIT_SERVICE_BASE_URL=http://localhost:3003/v1
+```bash
+export AUDIT_SERVICE_BASE_URL=http://localhost:3000/v1
 export AUDIT_SERVICE_API_KEY=your-audit-api-key
 ```
 
-------------------------------------------------------------------------
+## 4. Using in an Express app
 
-# 4. Using in an Express Service
+### Install
 
-### Install SDK
-
-``` bash
-npm i ../sleek-sdk-audit-client
+```bash
+npm i @sleek-sdk/auditor
 ```
 
-### Inject `AuditLogsClientService`
+Or install from local path:
 
-``` javascript
-const { AuditLogsClientService } = require('@sleek-sdk/audit-client');
+```bash
+npm i ../sdk-sleek-auditor-js
+```
+
+### Create client
+
+```javascript
+const { AuditLogger } = require('@sleek-sdk/auditor');
 
 app.set(
-  'auditService',
-  new AuditLogsClientService({
+  'AuditLogger',
+  new AuditLogger({
     baseUrl: process.env.AUDIT_SERVICE_BASE_URL,
     apiKey: process.env.AUDIT_SERVICE_API_KEY,
   }),
 );
 ```
 
-### Example Route
+### Example route
 
-``` javascript
-app.get("/api/audit-test", function (req, res) {
-  const auditService = req.app.get("auditService");
+```javascript
+app.get('/api/audit-test', function (req, res) {
+  const AuditLogger = req.app.get('AuditLogger');
 
-  if (!auditService) {
+  if (!AuditLogger) {
     return res.status(503).json({
       ok: false,
-      message: "Audit service not configured (missing config or env)"
+      message: 'Audit service not configured (missing config or env)',
     });
   }
 
-  auditService
-    .create({
-      serviceName: "sleek-back",
-      entityType: "AuditTest",
-      entityId: null,
-      action: "TEST",
-      actorId: req.user?._id?.toString() || null,
-      payload: {
-        source: "GET /api/audit-test",
-        at: new Date().toISOString(),
-      },
-      createdBy: req.user?._id?.toString() || null,
+  AuditLogger
+    .log({
+      service: 'sleek-back',
+      actorId: req.user?._id?.toString() ?? 'anonymous',
+      tenantId: 'tenant-1',
+      clientId: 'staff_portal',
+      action: 'TEST',
+      targetType: 'AuditTest',
+      targetId: 'test-1',
+      metadata: { source: 'GET /api/audit-test', at: new Date().toISOString() },
     })
-    .then((log) => res.json({ ok: true, auditLog: log }))
+    .then((event) => res.json({ ok: true, auditEvent: event }))
     .catch((err) => {
-      logger.error("Audit test failed", err);
+      logger.error('Audit test failed', err);
       res.status(500).json({ ok: false, error: err.message });
     });
 });
 ```
 
-------------------------------------------------------------------------
+## 5. Using in a NestJS app
 
-# 5. Using in a NestJS Service
+### Install
 
-### Install SDK
-
-``` bash
-npm i ../sleek-sdk-audit-client
+```bash
+npm i @sleek-sdk/auditor
 ```
 
-### Import Module in `AppModule`
+Or install from local path:
 
-``` typescript
-import { AuditLogsClientModule } from '@sleek-sdk/audit-client';
+```bash
+npm i ../sdk-sleek-auditor-js
+```
+
+### Register module in `AppModule`
+
+```typescript
+import { AuditEventsClientModule } from '@sleek-sdk/auditor';
 
 @Module({
   imports: [
-    AuditLogsClientModule.register({
-      baseUrl: 'http://localhost:3003/v1',
+    AuditEventsClientModule.register({
+      baseUrl: 'http://localhost:3000/v1',
       apiKey: 'your-audit-api-key',
     }),
   ],
@@ -122,30 +122,60 @@ import { AuditLogsClientModule } from '@sleek-sdk/audit-client';
 export class AppModule {}
 ```
 
-### Inject `AuditLogsClientService`
+### Inject and use
 
-``` typescript
+```typescript
 import { Injectable } from '@nestjs/common';
-import { AuditLogsClientService } from '@sleek-sdk/audit-client';
+import { AuditLogger } from '@sleek-sdk/auditor';
 
 @Injectable()
 export class OrderService {
-  constructor(private readonly auditClient: AuditLogsClientService) {}
+  constructor(private readonly auditLogger: AuditLogger) {}
 
-  async createOrder(userId: string) {
+  async createOrder(userId: string, tenantId: string) {
     const order = { id: 'ord_123' };
 
-    await this.auditClient.create({
-      serviceName: 'order-service',
-      entityType: 'Order',
-      entityId: order.id,
-      action: 'CREATE',
+    await this.auditLogger.log({
+      service: 'order-service',
       actorId: userId,
-      payload: { after: order },
-      createdBy: userId,
+      tenantId,
+      clientId: 'staff_portal',
+      action: 'CREATE',
+      targetType: 'Order',
+      targetId: order.id,
+      afterState: order,
     });
 
     return order;
   }
 }
+```
+
+### Optional: register with ConfigModule
+
+```typescript
+import { ConfigService } from '@nestjs/config';
+import { AuditEventsClientModule } from '@sleek-sdk/auditor';
+
+@Module({
+  imports: [
+    AuditEventsClientModule.registerAsync({
+      useFactory: (config: ConfigService) => ({
+        baseUrl: config.get('AUDIT_SERVICE_BASE_URL'),
+        apiKey: config.get('AUDIT_SERVICE_API_KEY'),
+      }),
+      inject: [ConfigService],
+    }),
+  ],
+})
+export class AppModule {}
+```
+
+### Querying events
+
+`AuditLogger` also provides `findAll(query?)` and `findOne(eventId)` for listing and fetching audit events:
+
+```typescript
+const page = await this.auditLogger.findAll({ page: 1, limit: 20, tenantId: 'tenant-1' });
+const event = await this.auditLogger.findOne('event-uuid');
 ```

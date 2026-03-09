@@ -1,7 +1,7 @@
 {
-  "name": "@sleek-sdk/audit-client",
+  "name": "@sleek-sdk/auditor",
   "version": "22.0.1",
-  "description": "HTTP client SDK for sleek-nest-audit service",
+  "description": "HTTP client SDK for Sleek Auditor API (audit events)",
   "author": "Brian Hoang",
   "license": "UNLICENSED",
   "main": "dist/index.js",
@@ -16,6 +16,11 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "build:watch": "tsc -p tsconfig.build.json --watch"
+  },
+  "dependencies": {
+    "axios-retry": "^4.5.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.1"
   },
   "peerDependencies": {
     "@nestjs/common": "^10.0.0",
