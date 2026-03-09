@@ -1,0 +1,32 @@
+{
+  "name": "@sleek-sdk/audit-client",
+  "version": "22.0.1",
+  "description": "HTTP client SDK for sleek-nest-audit service",
+  "author": "Brian Hoang",
+  "license": "UNLICENSED",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=10.0.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "build:watch": "tsc -p tsconfig.build.json --watch"
+  },
+  "peerDependencies": {
+    "@nestjs/common": "^10.0.0",
+    "axios": "^1.0.0",
+    "reflect-metadata": "^0.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.3.1",
+    "typescript": "^5.1.3"
+  },
+  "publishConfig": {
+    "registry": "https://sleek.jfrog.io/artifactory/api/npm/sleek-repo/"
+  }
+}
